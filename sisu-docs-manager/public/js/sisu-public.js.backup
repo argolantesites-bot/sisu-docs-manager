@@ -1,0 +1,519 @@
+/**
+ * JavaScript para funcionalidades públicas do SiSU Docs Manager - Versão 2
+ * Upload em Lote Implementado
+ */
+
+(function($) {
+    'use strict';
+
+    // Armazenar arquivos selecionados para upload em lote
+    var selectedFiles = {};
+
+    $(document).ready(function() {
+        // Inicializar funcionalidades
+        initLoginForm();
+        initBatchDocumentUpload(); // NOVO: Upload em lote
+        initFormValidation();
+        initProgressTracking();
+        initNotifications();
+    });
+
+    /**
+     * Inicializa funcionalidades do formulário de login
+     */
+    function initLoginForm() {
+        $('#sisu-login-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            var $form = $(this);
+            var $submitBtn = $form.find('button[type="submit"]');
+            var $loginText = $submitBtn.find('.login-text');
+            var $loadingText = $submitBtn.find('.loading-text');
+            var $messageDiv = $('#login-message');
+            
+            // Validar campos
+            var emailOrCpf = $('#email_or_cpf').val().trim();
+            var inscricao = $('#inscricao').val().trim();
+            
+            if (!emailOrCpf || !inscricao) {
+                showMessage('error', 'Preencha todos os campos obrigatórios.');
+                return;
+            }
+            
+            // Mostrar loading
+            $submitBtn.prop('disabled', true);
+            $loginText.addClass('sisu-hidden');
+            $loadingText.removeClass('sisu-hidden');
+            $messageDiv.addClass('sisu-hidden');
+            
+            // Dados do formulário
+            var formData = {
+                action: 'sisu_candidate_login',
+                email_or_cpf: emailOrCpf,
+                inscricao: inscricao,
+                nonce: sisu_public_ajax.nonce
+            };
+            
+            // Enviar requisição AJAX
+            $.post(sisu_public_ajax.ajax_url, formData)
+                .done(function(response) {
+                    if (response.success) {
+                        showMessage('success', response.data.message);
+                        
+                        // Redirecionar após 2 segundos
+                        setTimeout(function() {
+                            window.location.href = response.data.redirect;
+                        }, 2000);
+                    } else {
+                        showMessage('error', response.data.message);
+                        resetLoginButton($submitBtn, $loginText, $loadingText);
+                    }
+                })
+                .fail(function() {
+                    showMessage('error', 'Erro de conexão. Tente novamente.');
+                    resetLoginButton($submitBtn, $loginText, $loadingText);
+                });
+        });
+
+        // Formatação automática do CPF
+        $('#email_or_cpf').on('input', function() {
+            var value = $(this).val().replace(/\D/g, '');
+            if (value.length === 11 && !value.includes('@')) {
+                // Formatar como CPF
+                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                $(this).val(value);
+            }
+        });
+        
+        // Permitir apenas números na inscrição
+        $('#inscricao').on('input', function() {
+            var value = $(this).val().replace(/\D/g, '');
+            $(this).val(value);
+        });
+    }
+
+    /**
+     * NOVO: Inicializa funcionalidades de upload em lote de documentos
+     */
+    function initBatchDocumentUpload() {
+        // Quando o usuário seleciona um arquivo, apenas armazena (não envia)
+        $('input[type="file"]').on('change', function() {
+            var file = this.files[0];
+            var tipoDocumento = $(this).attr('id').replace('file-', '');
+            
+            if (file) {
+                // Validar arquivo
+                if (file.type !== 'application/pdf') {
+                    showMessage('error', 'Apenas arquivos PDF são permitidos para ' + tipoDocumento);
+                    $(this).val(''); // Limpar seleção
+                    return;
+                }
+                
+                var maxSize = parseInt($('#max-file-size').val()) || 10485760; // 10MB padrão
+                if (file.size > maxSize) {
+                    showMessage('error', 'O arquivo de ' + tipoDocumento + ' é muito grande. Tamanho máximo: ' + formatFileSize(maxSize));
+                    $(this).val(''); // Limpar seleção
+                    return;
+                }
+                
+                // Armazenar arquivo selecionado
+                selectedFiles[tipoDocumento] = file;
+                
+                // Atualizar o span filename-* (se existir)
+                var $filenameSpan = $('#filename-' + tipoDocumento);
+                if ($filenameSpan.length > 0) {
+                    $filenameSpan.text(file.name);
+                    $filenameSpan.css('color', '#46b450');
+                }
+                
+                // Atualizar UI para mostrar arquivo selecionado
+                var $documentItem = $('#document-' + tipoDocumento);
+                var $uploadArea = $documentItem.find('.sisu-upload-area');
+                var $fileInfo = $documentItem.find('.sisu-file-info');
+                
+                if ($fileInfo.length === 0) {
+                    $fileInfo = $('<div class="sisu-file-info"></div>');
+                    $uploadArea.after($fileInfo);
+                }
+                
+                $fileInfo.html(
+                    '<span class="file-selected">✓ Arquivo selecionado: ' + file.name + ' (' + formatFileSize(file.size) + ')</span>'
+                );
+                $uploadArea.addClass('file-selected');
+                
+                // Atualizar contador de arquivos selecionados
+                updateSelectedFilesCount();
+            }
+        });
+
+        // Botão "ENVIAR DOCUMENTAÇÃO" - Upload em lote
+        var $submitButton = $('#submit-all-documents');
+        console.log('Botão #submit-all-documents encontrado:', $submitButton.length);
+        console.log('Elemento do botão:', $submitButton);
+        
+        $submitButton.on('click', function(e) {
+            console.log('Botão ENVIAR DOCUMENTAÇÃO foi clicado!');
+            e.preventDefault();
+            
+            // Verificar se há arquivos selecionados
+            console.log('Arquivos selecionados:', selectedFiles);
+            console.log('Número de arquivos:', Object.keys(selectedFiles).length);
+            
+            if (Object.keys(selectedFiles).length === 0) {
+                showMessage('error', 'Selecione pelo menos um documento para enviar.');
+                return;
+            }
+            
+            // Confirmar envio
+            var fileCount = Object.keys(selectedFiles).length;
+            if (!confirm('Deseja enviar ' + fileCount + ' documento(s)?')) {
+                return;
+            }
+            
+            // Processar upload em lote
+            processBatchUpload();
+        });
+    }
+
+    /**
+     * NOVO: Processa upload em lote de todos os arquivos selecionados
+     */
+    function processBatchUpload() {
+        console.log('Iniciando upload em lote...');
+        console.log('Arquivos selecionados:', selectedFiles);
+        
+        var $submitBtn = $('#submit-all-documents');
+        var $btnText = $submitBtn.find('.submit-text');
+        var $btnLoading = $submitBtn.find('.loading-text');
+        
+        console.log('Botão encontrado:', $submitBtn.length);
+        
+        // Desabilitar botão e mostrar loading
+        $submitBtn.prop('disabled', true);
+        $btnText.addClass('sisu-hidden');
+        $btnLoading.removeClass('sisu-hidden');
+        
+        // Preparar FormData com todos os arquivos
+        var formData = new FormData();
+        formData.append('action', 'sisu_upload_documents_batch');
+        
+        // Pegar nonce do formulário
+        var nonce = $('#sisu-upload-form input[name="nonce"]').val();
+        console.log('Nonce do formulário:', nonce);
+        
+        if (!nonce) {
+            nonce = sisu_public_ajax.nonce; // Fallback
+            console.log('Usando nonce fallback:', nonce);
+        }
+        
+        formData.append('nonce', nonce);
+        console.log('Nonce final enviado:', nonce);
+        
+        // Adicionar candidate_id
+        var candidateId = $('#sisu-upload-form input[name="candidate_id"]').val();
+        if (candidateId) {
+            formData.append('candidate_id', candidateId);
+            console.log('Candidate ID:', candidateId);
+        }
+        
+        // Criar um array com os tipos de documentos para o backend saber quais processar
+        var documentTypes = [];
+        
+        // Adicionar cada arquivo ao FormData SEM colchetes (evita bloqueio do ModSecurity)
+        for (var tipoDocumento in selectedFiles) {
+            formData.append('document_' + tipoDocumento, selectedFiles[tipoDocumento]);
+            documentTypes.push(tipoDocumento);
+        }
+        
+        // Enviar lista de tipos como JSON string
+        formData.append('document_types', JSON.stringify(documentTypes));
+        
+        console.log('Tipos de documentos:', documentTypes);
+        
+        // Mostrar barra de progresso geral
+        var $progressContainer = $('#batch-upload-progress');
+        var $progressBar = $progressContainer.find('.sisu-progress-bar');
+        $progressContainer.removeClass('sisu-hidden');
+        $progressBar.css('width', '0%');
+        
+        // Upload via AJAX
+        $.ajax({
+            url: sisu_public_ajax.ajax_url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function() {
+                var xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = (evt.loaded / evt.total) * 100;
+                        $progressBar.css('width', percentComplete + '%');
+                    }
+                }, false);
+                return xhr;
+            },
+            success: function(response) {
+                console.log('Resposta do servidor:', response);
+                
+                if (response.success) {
+                    showMessage('success', response.data.message);
+                    
+                    // Mostrar detalhes se houver erros
+                    if (response.data.errors > 0 && response.data.error_details) {
+                        var errorHtml = '<ul>';
+                        response.data.error_details.forEach(function(error) {
+                            errorHtml += '<li>' + error + '</li>';
+                        });
+                        errorHtml += '</ul>';
+                        showMessage('warning', 'Alguns documentos apresentaram erros:' + errorHtml);
+                    }
+                    
+                    // Recarregar a página após 3 segundos
+                    setTimeout(function() {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    showMessage('error', response.data.message || 'Erro ao enviar documentos.');
+                    resetBatchUpload($submitBtn, $btnText, $btnLoading, $progressContainer);
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                console.error('Erro AJAX:', textStatus, errorThrown);
+                console.error('Status HTTP:', jqXHR.status);
+                console.error('Resposta completa:', jqXHR.responseText);
+                console.error('Headers:', jqXHR.getAllResponseHeaders());
+                
+                var errorMsg = 'Erro de conexão: ' + textStatus;
+                
+                if (jqXHR.status === 400) {
+                    errorMsg = 'Erro 400: O servidor rejeitou a requisição. Isso pode ser causado por:<br>';
+                    errorMsg += '- Firewall/ModSecurity do servidor<br>';
+                    errorMsg += '- Limite de tamanho dos arquivos<br>';
+                    errorMsg += '- Configuração do hosting<br><br>';
+                    errorMsg += 'Por favor, contate o suporte do hosting ou tente arquivos menores.';
+                } else if (jqXHR.status === 413) {
+                    errorMsg = 'Erro 413: Arquivos muito grandes. Reduza o tamanho dos arquivos e tente novamente.';
+                } else if (jqXHR.status === 0) {
+                    errorMsg = 'Erro de conexão: Não foi possível conectar ao servidor.';
+                }
+                
+                showMessage('error', errorMsg);
+                resetBatchUpload($submitBtn, $btnText, $btnLoading, $progressContainer);
+            }
+        });
+    }
+
+    /**
+     * NOVO: Reseta estado do upload em lote
+     */
+    function resetBatchUpload($submitBtn, $btnText, $btnLoading, $progressContainer) {
+        $submitBtn.prop('disabled', false);
+        $btnText.removeClass('sisu-hidden');
+        $btnLoading.addClass('sisu-hidden');
+        $progressContainer.addClass('sisu-hidden');
+    }
+
+    /**
+     * NOVO: Atualiza contador de arquivos selecionados
+     */
+    function updateSelectedFilesCount() {
+        var count = Object.keys(selectedFiles).length;
+        var $counter = $('#selected-files-count');
+        
+        if ($counter.length === 0) {
+            $counter = $('<div id="selected-files-count" class="selected-files-count"></div>');
+            $('#submit-all-documents').before($counter);
+        }
+        
+        if (count > 0) {
+            $counter.html('<strong>' + count + '</strong> documento(s) selecionado(s)').show();
+        } else {
+            $counter.hide();
+        }
+    }
+
+    /**
+     * Inicializa validação de formulários
+     */
+    function initFormValidation() {
+        // Validação em tempo real
+        $('input[type="email"]').on('blur', function() {
+            var email = $(this).val();
+            if (email && !isValidEmail(email)) {
+                showFieldError($(this), 'Email inválido');
+            } else {
+                clearFieldError($(this));
+            }
+        });
+
+        // Validação de CPF
+        $('input[data-type="cpf"]').on('blur', function() {
+            var cpf = $(this).val().replace(/\D/g, '');
+            if (cpf.length === 11 && !isValidCPF(cpf)) {
+                showFieldError($(this), 'CPF inválido');
+            } else {
+                clearFieldError($(this));
+            }
+        });
+    }
+
+    /**
+     * Inicializa rastreamento de progresso
+     */
+    function initProgressTracking() {
+        // Atualizar progresso geral
+        updateOverallProgress();
+        
+        // Animação da barra de progresso
+        $('.sisu-progress-bar').each(function() {
+            var width = $(this).css('width');
+            $(this).css('width', '0%').animate({ width: width }, 1000);
+        });
+    }
+
+    /**
+     * Inicializa sistema de notificações
+     */
+    function initNotifications() {
+        // Auto-hide de alertas após 5 segundos
+        $('.sisu-alert').each(function() {
+            var $alert = $(this);
+            setTimeout(function() {
+                $alert.fadeOut();
+            }, 5000);
+        });
+
+        // Logout
+        $('#sisu-logout').on('click', function(e) {
+            e.preventDefault();
+            
+            if (confirm('Tem certeza que deseja sair?')) {
+                $.post(sisu_public_ajax.ajax_url, {
+                    action: 'sisu_candidate_logout',
+                    nonce: sisu_public_ajax.nonce
+                }, function(response) {
+                    if (response.success) {
+                        window.location.href = response.data.redirect;
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Reseta botão de login
+     */
+    function resetLoginButton($submitBtn, $loginText, $loadingText) {
+        $submitBtn.prop('disabled', false);
+        $loginText.removeClass('sisu-hidden');
+        $loadingText.addClass('sisu-hidden');
+    }
+
+    /**
+     * Atualiza progresso geral
+     */
+    function updateOverallProgress() {
+        var totalDocs = $('.sisu-document-item').length;
+        var approvedDocs = $('.sisu-status-aprovado').length;
+        var progress = totalDocs > 0 ? Math.round((approvedDocs / totalDocs) * 100) : 0;
+        
+        $('.overall-progress-bar').css('width', progress + '%');
+        $('.overall-progress-text').text(progress + '%');
+    }
+
+    /**
+     * Mostra erro em campo específico
+     */
+    function showFieldError($field, message) {
+        clearFieldError($field);
+        
+        var $error = $('<div class="field-error">' + message + '</div>');
+        $field.addClass('error').after($error);
+    }
+
+    /**
+     * Remove erro de campo
+     */
+    function clearFieldError($field) {
+        $field.removeClass('error').next('.field-error').remove();
+    }
+
+    /**
+     * Mostra mensagem para o usuário
+     */
+    function showMessage(type, message) {
+        var $messageDiv = $('#sisu-message');
+        
+        if ($messageDiv.length === 0) {
+            $messageDiv = $('<div id="sisu-message"></div>');
+            $('body').prepend($messageDiv);
+        }
+        
+        $messageDiv
+            .removeClass('sisu-alert-success sisu-alert-error sisu-alert-warning')
+            .addClass('sisu-alert sisu-alert-' + type)
+            .html('<p>' + message + '</p>')
+            .fadeIn();
+        
+        // Auto-hide após 5 segundos
+        setTimeout(function() {
+            $messageDiv.fadeOut();
+        }, 5000);
+    }
+
+    /**
+     * Valida email
+     */
+    function isValidEmail(email) {
+        var re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    /**
+     * Valida CPF
+     */
+    function isValidCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        
+        if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) {
+            return false;
+        }
+        
+        var sum = 0;
+        var remainder;
+        
+        for (var i = 1; i <= 9; i++) {
+            sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+        }
+        
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.substring(9, 10))) return false;
+        
+        sum = 0;
+        for (var i = 1; i <= 10; i++) {
+            sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+        }
+        
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.substring(10, 11))) return false;
+        
+        return true;
+    }
+
+    /**
+     * Formata tamanho de arquivo
+     */
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        var k = 1024;
+        var sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+})(jQuery);

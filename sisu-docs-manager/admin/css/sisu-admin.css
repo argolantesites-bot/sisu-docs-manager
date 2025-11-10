@@ -1,0 +1,273 @@
+/**
+ * Estilos para a área administrativa do SiSU Docs Manager
+ */
+
+.sisu-admin-container {
+    max-width: 1200px;
+    margin: 20px 0;
+}
+
+.sisu-admin-header {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.sisu-admin-header h1 {
+    margin: 0 0 10px 0;
+    color: #23282d;
+}
+
+.sisu-admin-content {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 20px;
+}
+
+.sisu-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.sisu-table th,
+.sisu-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.sisu-table th {
+    background-color: #f1f1f1;
+    font-weight: 600;
+}
+
+.sisu-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.sisu-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    margin: 4px 2px;
+    text-decoration: none;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.sisu-btn-primary {
+    background-color: #0073aa;
+    color: #fff;
+}
+
+.sisu-btn-primary:hover {
+    background-color: #005a87;
+    color: #fff;
+}
+
+.sisu-btn-secondary {
+    background-color: #f7f7f7;
+    color: #555;
+    border: 1px solid #ccc;
+}
+
+.sisu-btn-secondary:hover {
+    background-color: #fafafa;
+    color: #555;
+}
+
+.sisu-btn-danger {
+    background-color: #dc3232;
+    color: #fff;
+}
+
+.sisu-btn-danger:hover {
+    background-color: #a00;
+    color: #fff;
+}
+
+.sisu-status {
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.sisu-status-aprovado {
+    background-color: #46b450;
+    color: #fff;
+}
+
+.sisu-status-recusado {
+    background-color: #dc3232;
+    color: #fff;
+}
+
+.sisu-status-aguardando {
+    background-color: #ffb900;
+    color: #fff;
+}
+
+.sisu-status-nao-enviado {
+    background-color: #72777c;
+    color: #fff;
+}
+
+.sisu-form-table {
+    width: 100%;
+}
+
+.sisu-form-table th {
+    width: 200px;
+    padding: 20px 10px 20px 0;
+    vertical-align: top;
+    text-align: left;
+    font-weight: 600;
+}
+
+.sisu-form-table td {
+    padding: 15px 10px;
+    vertical-align: top;
+}
+
+.sisu-form-table input[type="text"],
+.sisu-form-table input[type="email"],
+.sisu-form-table input[type="datetime-local"],
+.sisu-form-table select,
+.sisu-form-table textarea {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.sisu-form-table textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+.sisu-upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    padding: 40px;
+    text-align: center;
+    background-color: #fafafa;
+    margin: 20px 0;
+}
+
+.sisu-upload-area.dragover {
+    border-color: #0073aa;
+    background-color: #f0f8ff;
+}
+
+.sisu-file-list {
+    margin-top: 20px;
+}
+
+.sisu-file-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    background-color: #fff;
+}
+
+.sisu-file-item .file-info {
+    flex: 1;
+    margin-left: 10px;
+}
+
+.sisu-file-item .file-actions {
+    margin-left: auto;
+}
+
+.sisu-progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #f1f1f1;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.sisu-progress-fill {
+    height: 100%;
+    background-color: #0073aa;
+    transition: width 0.3s ease;
+}
+
+.sisu-alert {
+    padding: 12px;
+    margin: 20px 0;
+    border-left: 4px solid;
+    border-radius: 3px;
+}
+
+.sisu-alert-success {
+    background-color: #dff0d8;
+    border-color: #46b450;
+    color: #3c763d;
+}
+
+.sisu-alert-error {
+    background-color: #f2dede;
+    border-color: #dc3232;
+    color: #a94442;
+}
+
+.sisu-alert-warning {
+    background-color: #fcf8e3;
+    border-color: #ffb900;
+    color: #8a6d3b;
+}
+
+.sisu-alert-info {
+    background-color: #d9edf7;
+    border-color: #0073aa;
+    color: #31708f;
+}
+
+.sisu-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #0073aa;
+    border-radius: 50%;
+    animation: sisu-spin 1s linear infinite;
+}
+
+@keyframes sisu-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.sisu-hidden {
+    display: none !important;
+}
+
+.sisu-text-center {
+    text-align: center;
+}
+
+.sisu-text-right {
+    text-align: right;
+}
+
+.sisu-mb-20 {
+    margin-bottom: 20px;
+}
+
+.sisu-mt-20 {
+    margin-top: 20px;
+}
